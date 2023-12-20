@@ -1,12 +1,13 @@
-// ignore_for_file: library_private_types_in_public_api
-
-import 'homepage.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'homepage.dart'; // Replace with the actual import for your homepage
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _LoginPageState createState() => _LoginPageState();
 }
 
@@ -14,7 +15,8 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  bool _obscurePassword = true; // Added state variable for password visibility
+  bool _obscurePassword = true; // State variable for password visibility
+  bool isLogin = true; // Toggle between Login & Signup
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +67,7 @@ class _LoginPageState extends State<LoginPage> {
                   color: Colors.indigoAccent,
                 ),
                 controller: _passwordController,
-                obscureText: _obscurePassword, // Use the state variable here
+                obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   labelText: 'Password',
                   labelStyle: const TextStyle(
@@ -74,13 +76,11 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      // Toggle the icon based on the state
                       _obscurePassword
                           ? Icons.visibility
                           : Icons.visibility_off,
                     ),
                     onPressed: () {
-                      // Update the state to toggle password visibility
                       setState(() {
                         _obscurePassword = !_obscurePassword;
                       });
@@ -106,32 +106,30 @@ class _LoginPageState extends State<LoginPage> {
                     backgroundColor: Colors.indigoAccent),
                 onPressed: () {
                   if (_formKey.currentState?.validate() == true) {
-                    // Check for specific username and password
-                    if (_usernameController.text ==
-                            "adrielferrer15@gmail.com" &&
-                        _passwordController.text == "Admin@1234") {
-                      // Successful login
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const Firstpage()),
-                      );
-                    } else {
-                      // Incorrect username or password
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Incorrect username or password'),
-                        ),
-                      );
-                    }
+                    isLogin ? performLogin(context) : performSignup(context);
                   }
                 },
-                child: const Text(
-                  'Login',
-                  style: TextStyle(
+                child: Text(
+                  isLogin ? 'Login' : 'Sign Up',
+                  style: const TextStyle(
                     fontFamily: 'RobotoMono',
                     color: Colors.white,
                     fontSize: 20,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  isLogin = !isLogin;
+                  // Clear the input fields
+                  _usernameController.clear();
+                  _passwordController.clear();
+                }),
+                child: Text(
+                  isLogin ? 'Create new account' : 'I already have an account',
+                  style: const TextStyle(
+                    fontFamily: 'RobotoMono',
+                    color: Colors.indigoAccent,
                   ),
                 ),
               ),
@@ -141,5 +139,56 @@ class _LoginPageState extends State<LoginPage> {
       ),
       backgroundColor: Colors.white,
     );
+  }
+
+  void performLogin(BuildContext context) async {
+    var response = await http.post(
+      Uri.parse('http://127.0.0.1/test/login.php'),
+      body: {
+        'email': _usernameController.text,
+        'password': _passwordController.text
+      },
+    );
+
+    final responseData = json.decode(response.body);
+    if (responseData == "Login successful") {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+            builder: (context) =>
+                const Firstpage()), // Replace with your homepage
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid credentials')),
+      );
+    }
+  }
+
+  void performSignup(BuildContext context) async {
+    var response = await http.post(
+      Uri.parse('http://127.0.0.1/test/signup.php'),
+      body: {
+        'email': _usernameController.text,
+        'password': _passwordController.text
+      },
+    );
+
+    final responseData = json.decode(response.body);
+    if (responseData == "User registered successfully") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Successfully Signed up, you may now log in')),
+      );
+      setState(() {
+        isLogin = true; // Switch back to login page
+        // Clear the input fields
+        _usernameController.clear();
+        _passwordController.clear();
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error during sign up')),
+      );
+    }
   }
 }
